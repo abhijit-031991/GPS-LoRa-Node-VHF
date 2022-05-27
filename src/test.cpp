@@ -34,7 +34,7 @@ const int PROGMEM LDIO = 0;
 
 ///// DEVICE DEFINITIONS /////
 
-const uint16_t tag = 10112;
+const uint16_t tag = 10208;
 const uint8_t devType = 107;
 
 ///// VARIABLES /////
@@ -81,17 +81,18 @@ float lat;                        // Storing last known Latitude
 float lng;                        // Storign last known Longitude
 
 // Radio Variables //
-int radioFrequency = 1;           //Frequency of Pings in minutes *** USER CONFIG ***
+int radioFrequency = 5;           //Frequency of Pings in minutes *** USER CONFIG ***
 int rcv_duration = 5;             // Receive Window Duration in seconds *** USER CONFIG ***
 time_t sch_start;                 // Last Schedule Start Time 
 time_t sch_end;                   // Last Schedule End Time
 int sch_duration = 5;             // Schedule Window Duration in mins *** USER CONFIG ***
-int sch_rpt_duration = 10;         // Schedule repeat time in days *** USER CONFIG ***
+int sch_rpt_duration = 10;        // Schedule repeat time in days *** USER CONFIG ***
+float vhfFrq = 149.5;             // VHF Frequency
 
 // VHF Packets //
-int horusPacketLen = 4;
+int horusPacketLen = 1;
 byte horusPacket[] = {
-  0x45, 0x24, 0x1B, 0X1A
+  0x45
 };
 
 //...................................//
@@ -151,47 +152,48 @@ void activationPing(){
     EEPROM.write(1, true);
     Serial.println(EEPROM.read(1));
     Serial.print(F("System Initialising"));
-     /// Begin GPS and Acquire Lock ////
-    // digitalWrite(GPS_PIN, HIGH);
-    //   do{ 
-    //     while (gps_serial.available() > 0)
-    //     {
-    //       if (gps.encode(gps_serial.read()))
-    //       {
-    //         if (!gps.location.isValid())
-    //         {
-    //           Serial.println(F("Not Valid"));
-    //         }else{
-    //           Serial.println(gps.location.isUpdated());
-    //           Serial.print("Location Age:");
-    //           Serial.println(gps.location.age());
-    //           Serial.print("Time Age:");
-    //           Serial.println(gps.time.age());
-    //           Serial.print("Date Age:");
-    //           Serial.println(gps.date.age());
-    //           Serial.print("Satellites:");
-    //           Serial.println(gps.satellites.value());
-    //           Serial.print("HDOP:");
-    //           Serial.println(gps.hdop.hdop());
-    //         }
-    //       }
-    //     }
-    //   }while(!gps.location.isValid());
-    // if (gps.location.age() < 60000)
-    // {
-    //   //pack data into struct
-    //   lat = gps.location.lat();
-    //   lng = gps.location.lng();
-    // }
-    // if (gps.time.isValid())
-    // {
-    //   setTime(gps.time.hour(),gps.time.minute(),gps.time.second(),gps.date.day(),gps.date.month(),gps.date.year());
-    //   time_t n = now();
-    //   strtTime = n;
-    //   Serial.print(F("START TIME")); Serial.println(strtTime);
-    // }
+    /// Begin GPS and Acquire Lock ////
+
+    digitalWrite(GPS_PIN, HIGH);
+      do{ 
+        while (gps_serial.available() > 0)
+        {
+          if (gps.encode(gps_serial.read()))
+          {
+            if (!gps.location.isValid())
+            {
+              Serial.println(F("Not Valid"));
+            }else{
+              Serial.println(gps.location.isUpdated());
+              Serial.print("Location Age:");
+              Serial.println(gps.location.age());
+              Serial.print("Time Age:");
+              Serial.println(gps.time.age());
+              Serial.print("Date Age:");
+              Serial.println(gps.date.age());
+              Serial.print("Satellites:");
+              Serial.println(gps.satellites.value());
+              Serial.print("HDOP:");
+              Serial.println(gps.hdop.hdop());
+            }
+          }
+        }
+      }while(!gps.location.isValid());
+    if (gps.location.age() < 60000)
+    {
+      //pack data into struct
+      lat = gps.location.lat();
+      lng = gps.location.lng();
+    }
+    if (gps.time.isValid())
+    {
+      setTime(gps.time.hour(),gps.time.minute(),gps.time.second(),gps.date.day(),gps.date.month(),gps.date.year());
+      time_t n = now();
+      strtTime = n;
+      Serial.print(F("START TIME")); Serial.println(strtTime);
+    }
     
-    // digitalWrite(GPS_PIN, LOW);
+    digitalWrite(GPS_PIN, LOW);
     
     wipe = true;
 
@@ -621,11 +623,12 @@ void fsk(){
         while(true);
     }
 
+    
     Serial.print(F("[FSK4] Initializing ... "));
     // low ("space") frequency:     434.0 MHz
     // frequency shift:             270 Hz
     // baud rate:                   100 baud
-    state = fsk4.begin(150.5, 270, 100);
+    state = fsk4.begin(vhfFrq, 270, 100);
     if(state == RADIOLIB_ERR_NONE) {
         Serial.println(F("success!"));
     } else {
@@ -634,10 +637,13 @@ void fsk(){
         while(true);
     }
 
-    fsk4.idle();
-    delay(10);
+    // fsk4.idle();
+    // delay(10);
 
     fsk4.write(horusPacket, horusPacketLen);
+
+
+
     // Begin LoRa Radio//
     LoRa.setPins(LCS, LRST, LDIO);
     if(!LoRa.begin(867E6)){
@@ -680,7 +686,7 @@ void setup() {
   LoRa.sleep();
 
   // Activation Ping //
-  // activationPing();
+  activationPing();
 
   // Enable & Start Flash //
   
